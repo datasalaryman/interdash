@@ -1,18 +1,16 @@
 import { Link } from "@tanstack/react-router";
-import { RssIcon } from "lucide-react";
+import { RssIcon, SearchIcon, XIcon } from "lucide-react";
+import { type FormEvent, useState } from "react";
 
+import { AddFeedDialog } from "@/components/blocks/add-feed-dialog";
 import { Badge } from "@/components/ui/badge";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import type { FeedSummary } from "@/lib/newsboat";
 import { cn } from "@/lib/utils";
 
 type FeedListProps = {
+	canAddFeed: boolean;
 	feeds: Array<FeedSummary>;
 	query?: string;
 	selectedFeedUrl?: string;
@@ -20,35 +18,96 @@ type FeedListProps = {
 };
 
 export function FeedList({
+	canAddFeed,
 	feeds,
 	query,
 	selectedFeedUrl,
 	totalUnread,
 }: FeedListProps) {
+	const [searchDraft, setSearchDraft] = useState("");
+	const [feedSearch, setFeedSearch] = useState("");
+	const normalizedFeedSearch = feedSearch.toLowerCase();
+	const filteredFeeds = normalizedFeedSearch
+		? feeds.filter((feed) =>
+				[feed.title, feed.rssurl, feed.url].some((value) =>
+					value.toLowerCase().includes(normalizedFeedSearch),
+				),
+			)
+		: feeds;
+
+	function handleSearchSubmit(event: FormEvent<HTMLFormElement>) {
+		event.preventDefault();
+		setFeedSearch(searchDraft.trim());
+	}
+
+	function clearFeedSearch() {
+		setSearchDraft("");
+		setFeedSearch("");
+	}
+
 	return (
-		<Card className="min-h-0 overflow-hidden py-0">
-			<CardHeader className="border-b px-4 py-4">
-				<div className="flex items-center justify-between gap-3">
-					<div>
-						<CardTitle className="flex items-center gap-2 text-base">
-							<RssIcon className="size-4 text-primary" />
-							Feeds
-						</CardTitle>
-						<CardDescription>{feeds.length} subscriptions</CardDescription>
+		<aside className="flex max-h-[80svh] min-h-[22rem] flex-col overflow-hidden border-b bg-card/90 backdrop-blur lg:sticky lg:top-0 lg:h-svh lg:max-h-svh lg:min-h-svh lg:border-r lg:border-b-0">
+			<div className="border-b p-4">
+				<AddFeedDialog className="w-full" disabled={!canAddFeed} />
+				<form className="mt-3 flex gap-2" onSubmit={handleSearchSubmit}>
+					<div className="relative min-w-0 flex-1">
+						<SearchIcon className="-translate-y-1/2 pointer-events-none absolute top-1/2 left-3 size-4 text-muted-foreground" />
+						<Input
+							aria-label="Filter feeds"
+							autoComplete="off"
+							className="pl-9"
+							onChange={(event) => setSearchDraft(event.target.value)}
+							placeholder="Filter feeds"
+							value={searchDraft}
+						/>
 					</div>
-					<Badge variant={totalUnread > 0 ? "default" : "secondary"}>
-						{totalUnread} unread
-					</Badge>
+					<Button type="submit" variant="outline">
+						Search feed
+					</Button>
+				</form>
+				{feedSearch ? (
+					<div className="mt-3 flex items-center justify-between gap-3 text-muted-foreground text-xs">
+						<span>
+							{filteredFeeds.length} of {feeds.length} feeds match
+						</span>
+						<Button
+							onClick={clearFeedSearch}
+							size="sm"
+							type="button"
+							variant="ghost"
+						>
+							<XIcon />
+							Clear
+						</Button>
+					</div>
+				) : null}
+			</div>
+
+			<div className="flex items-center justify-between gap-3 border-b px-4 py-3">
+				<div>
+					<h2 className="flex items-center gap-2 font-semibold text-base leading-none tracking-tight">
+						<RssIcon className="size-4 text-primary" />
+						Feeds
+					</h2>
+					<p className="mt-1.5 text-muted-foreground text-sm">
+						{feeds.length} subscriptions
+					</p>
 				</div>
-			</CardHeader>
-			<CardContent className="min-h-0 overflow-auto p-2">
-				{feeds.length === 0 ? (
+				<Badge variant={totalUnread > 0 ? "default" : "secondary"}>
+					{totalUnread} unread
+				</Badge>
+			</div>
+
+			<nav aria-label="Feeds" className="min-h-0 flex-1 overflow-auto p-2">
+				{filteredFeeds.length === 0 ? (
 					<p className="px-3 py-6 text-muted-foreground text-sm">
-						No feeds found yet.
+						{feeds.length === 0
+							? "No feeds found yet."
+							: "No feeds match this search."}
 					</p>
 				) : (
 					<div className="grid gap-1">
-						{feeds.map((feed) => {
+						{filteredFeeds.map((feed) => {
 							const isSelected = feed.rssurl === selectedFeedUrl;
 
 							return (
@@ -85,7 +144,7 @@ export function FeedList({
 						})}
 					</div>
 				)}
-			</CardContent>
-		</Card>
+			</nav>
+		</aside>
 	);
 }

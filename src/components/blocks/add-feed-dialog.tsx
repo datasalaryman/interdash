@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { addFeed } from "@/server/functions/feeds";
 
 type AddFeedDialogProps = {
+	className?: string;
 	disabled?: boolean;
 };
 
@@ -24,7 +25,10 @@ function errorMessage(error: unknown) {
 	return "Unable to add feed.";
 }
 
-export function AddFeedDialog({ disabled = false }: AddFeedDialogProps) {
+export function AddFeedDialog({
+	className,
+	disabled = false,
+}: AddFeedDialogProps) {
 	const [isOpen, setIsOpen] = useState(false);
 	const [rssurl, setRssurl] = useState("");
 	const [error, setError] = useState<string | null>(null);
@@ -123,6 +127,7 @@ export function AddFeedDialog({ disabled = false }: AddFeedDialogProps) {
 	return (
 		<>
 			<Button
+				className={className}
 				disabled={disabled}
 				onClick={() => {
 					setError(null);
