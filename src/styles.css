@@ -1,0 +1,81 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  --radius: 0.75rem;
+  --background: oklch(0.982 0.012 95.277);
+  --foreground: oklch(0.176 0.028 240.349);
+  --card: oklch(0.997 0.006 95.277);
+  --card-foreground: oklch(0.176 0.028 240.349);
+  --popover: oklch(0.997 0.006 95.277);
+  --popover-foreground: oklch(0.176 0.028 240.349);
+  --primary: oklch(0.446 0.12 236.089);
+  --primary-foreground: oklch(0.985 0.012 95.277);
+  --secondary: oklch(0.939 0.018 92.536);
+  --secondary-foreground: oklch(0.236 0.032 240.349);
+  --muted: oklch(0.934 0.012 95.277);
+  --muted-foreground: oklch(0.473 0.031 248.321);
+  --accent: oklch(0.893 0.04 177.67);
+  --accent-foreground: oklch(0.201 0.031 216.112);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.86 0.022 94.746);
+  --input: oklch(0.86 0.022 94.746);
+  --ring: oklch(0.525 0.13 236.089);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at top left, color-mix(in oklch, var(--accent) 36%, transparent), transparent 32rem),
+    var(--background);
+  color: var(--foreground);
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
