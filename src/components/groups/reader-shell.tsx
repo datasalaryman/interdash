@@ -6,7 +6,6 @@ import {
 	useState,
 } from "react";
 
-import { ArticleDetail } from "@/components/blocks/article-detail";
 import { ArticleList } from "@/components/blocks/article-list";
 import { FeedList } from "@/components/blocks/feed-list";
 import { ReaderSearchForm } from "@/components/blocks/reader-search-form";
@@ -180,14 +179,14 @@ export function ReaderShell({ data, search }: ReaderShellProps) {
 					selectedFeedUrl={data.selectedFeedUrl}
 				/>
 
-				<section className="grid min-h-[68vh] flex-1 gap-4 xl:grid-cols-[minmax(360px,0.8fr)_minmax(0,1.4fr)]">
+				<section className="min-h-[68vh] flex-1">
 					<ArticleList
 						articles={data.articles}
 						query={search.q}
+						selectedArticle={data.selectedArticle}
 						selectedArticleGuid={data.selectedArticleGuid}
 						selectedFeedUrl={data.selectedFeedUrl}
 					/>
-					<ArticleDetail article={data.selectedArticle} />
 				</section>
 			</main>
 		</div>
