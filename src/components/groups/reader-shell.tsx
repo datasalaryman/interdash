@@ -1,5 +1,6 @@
 import { DatabaseIcon, RadioTowerIcon } from "lucide-react";
 
+import { AddFeedDialog } from "@/components/blocks/add-feed-dialog";
 import { ArticleDetail } from "@/components/blocks/article-detail";
 import { ArticleList } from "@/components/blocks/article-list";
 import { FeedList } from "@/components/blocks/feed-list";
@@ -34,6 +35,7 @@ export function ReaderShell({ data, search }: ReaderShellProps) {
 						</div>
 					</div>
 					<div className="flex flex-wrap items-center gap-2">
+						<AddFeedDialog disabled={!data.isDatabaseConfigured} />
 						<Badge
 							variant={data.isDatabaseConfigured ? "secondary" : "destructive"}
 						>

@@ -43,6 +43,7 @@ bun run db:studio
 ## API
 
 - `GET /api/feeds`
+- `POST /api/feeds`
 - `POST /api/feeds/{rssurl}/read`
 - `GET /api/articles`
 - `GET /api/articles/{guid}`

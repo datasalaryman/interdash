@@ -2,6 +2,7 @@ import { ORPCError, os } from "@orpc/server";
 import { z } from "zod";
 
 import {
+	addFeedFromUrl,
 	getArticleCached,
 	listArticlesCached,
 	listFeedsCached,
@@ -39,12 +40,24 @@ const articleDetailSchema = articleSummarySchema.extend({
 	enclosureType: z.string().nullable(),
 });
 
+const addFeedResultSchema = z.object({
+	feed: feedSummarySchema,
+	itemCount: z.number(),
+	insertedCount: z.number(),
+	updatedCount: z.number(),
+});
+
 export const apiRouter = {
 	feeds: {
 		list: os
 			.route({ method: "GET", path: "/feeds" })
 			.output(z.array(feedSummarySchema))
 			.handler(async () => listFeedsCached()),
+		create: os
+			.route({ method: "POST", path: "/feeds" })
+			.input(z.object({ rssurl: z.string().min(1) }))
+			.output(addFeedResultSchema)
+			.handler(async ({ input }) => addFeedFromUrl(input.rssurl)),
 		markRead: os
 			.route({ method: "POST", path: "/feeds/{rssurl}/read" })
 			.input(z.object({ rssurl: z.string() }))

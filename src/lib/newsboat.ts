@@ -1,8 +1,11 @@
+import { createHash } from "node:crypto";
+
 import { and, desc, eq, ilike, ne, or, sql } from "drizzle-orm";
 
 import { getDb, hasDatabaseUrl } from "@/db";
 import { rssFeed, rssItem } from "@/db/schema";
-import { readThroughCache } from "@/lib/cache";
+import { deleteCacheKeys, readThroughCache } from "@/lib/cache";
+import { fetchRssFeed, type ParsedRssItem } from "@/lib/rss";
 import { excerpt, toPlainText } from "@/lib/text";
 
 export type ReaderSearch = {
@@ -49,6 +52,13 @@ export type ReaderData = {
 	selectedArticleGuid?: string;
 	selectedArticle: ArticleDetail | null;
 	totalUnread: number;
+};
+
+export type AddFeedResult = {
+	feed: FeedSummary;
+	itemCount: number;
+	insertedCount: number;
+	updatedCount: number;
 };
 
 type ListArticlesInput = {
@@ -129,6 +139,63 @@ function toArticleDetail(row: {
 	};
 }
 
+function truncate(value: string | null | undefined, maxLength: number) {
+	if (!value) {
+		return "";
+	}
+
+	return value.length > maxLength ? value.slice(0, maxLength) : value;
+}
+
+function normalizeHttpUrl(value: string) {
+	let url: URL;
+
+	try {
+		url = new URL(value.trim());
+	} catch {
+		throw new Error("Enter a valid feed URL.");
+	}
+
+	if (url.protocol !== "http:" && url.protocol !== "https:") {
+		throw new Error("Feed URL must start with http:// or https://.");
+	}
+
+	url.hash = "";
+
+	const normalized = url.toString();
+
+	if (normalized.length > 1024) {
+		throw new Error("Feed URL is too long.");
+	}
+
+	return normalized;
+}
+
+function itemGuid(feedurl: string, item: ParsedRssItem, index: number) {
+	const source =
+		item.sourceId || item.url || `${item.title}:${item.pubDate}:${index}`;
+
+	return createHash("sha256").update(`${feedurl}\n${source}`).digest("hex");
+}
+
+function itemValues(feedurl: string, item: ParsedRssItem, index: number) {
+	return {
+		author: truncate(item.author, 1024),
+		content: item.content,
+		contentMimeType: truncate(item.contentMimeType, 255),
+		deleted: 0,
+		enclosureType: item.enclosureType
+			? truncate(item.enclosureType, 1024)
+			: null,
+		enclosureUrl: item.enclosureUrl ? truncate(item.enclosureUrl, 1024) : null,
+		feedurl,
+		guid: itemGuid(feedurl, item, index),
+		pubDate: item.pubDate,
+		title: truncate(item.title || "Untitled article", 1024),
+		url: truncate(item.url, 1024),
+	};
+}
+
 export async function listFeeds() {
 	const db = getDb();
 
@@ -155,6 +222,91 @@ export async function listFeeds() {
 
 export async function listFeedsCached() {
 	return readThroughCache("newsboat:feeds", listFeeds);
+}
+
+export async function addFeedFromUrl(value: string): Promise<AddFeedResult> {
+	const db = getDb();
+
+	if (!db) {
+		throw new Error("DATABASE_URL is not configured.");
+	}
+
+	const rssurl = normalizeHttpUrl(value);
+	const feed = await fetchRssFeed(rssurl);
+	let insertedCount = 0;
+	let updatedCount = 0;
+
+	await db.transaction(async (tx) => {
+		await tx
+			.insert(rssFeed)
+			.values({
+				etag: truncate(feed.etag, 128),
+				lastmodified: feed.lastModified,
+				rssurl,
+				title: truncate(feed.title || rssurl, 1024),
+				url: truncate(feed.siteUrl, 1024),
+			})
+			.onConflictDoUpdate({
+				set: {
+					etag: truncate(feed.etag, 128),
+					lastmodified: feed.lastModified,
+					title: truncate(feed.title || rssurl, 1024),
+					url: truncate(feed.siteUrl, 1024),
+				},
+				target: rssFeed.rssurl,
+			});
+
+		for (const [index, item] of feed.items.entries()) {
+			const values = itemValues(rssurl, item, index);
+			const result = await tx
+				.update(rssItem)
+				.set({
+					author: values.author,
+					content: values.content,
+					contentMimeType: values.contentMimeType,
+					deleted: values.deleted,
+					enclosureType: values.enclosureType,
+					enclosureUrl: values.enclosureUrl,
+					pubDate: values.pubDate,
+					title: values.title,
+					url: values.url,
+				})
+				.where(and(eq(rssItem.feedurl, rssurl), eq(rssItem.guid, values.guid)));
+
+			if ((result.rowCount ?? 0) > 0) {
+				updatedCount += result.rowCount ?? 0;
+				continue;
+			}
+
+			await tx.insert(rssItem).values(values);
+			insertedCount += 1;
+		}
+	});
+
+	await deleteCacheKeys(["newsboat:feeds"]);
+
+	const feeds = await listFeeds();
+	const addedFeed = feeds.find((row) => row.rssurl === rssurl) ?? {
+		articleCount: feed.items.length,
+		latestPubDate: feed.items.reduce<number | null>((latest, item) => {
+			if (!item.pubDate) {
+				return latest;
+			}
+
+			return latest === null ? item.pubDate : Math.max(latest, item.pubDate);
+		}, null),
+		rssurl,
+		title: feed.title || rssurl,
+		unreadCount: feed.items.length,
+		url: feed.siteUrl,
+	};
+
+	return {
+		feed: addedFeed,
+		insertedCount,
+		itemCount: feed.items.length,
+		updatedCount,
+	};
 }
 
 export async function listArticles({
