@@ -10,7 +10,6 @@ import { excerpt, toPlainText } from "@/lib/text";
 
 export type ReaderSearch = {
 	feed?: string;
-	article?: string;
 	q?: string;
 };
 
@@ -49,8 +48,6 @@ export type ReaderData = {
 	feeds: Array<FeedSummary>;
 	articles: Array<ArticleSummary>;
 	selectedFeedUrl?: string;
-	selectedArticleGuid?: string;
-	selectedArticle: ArticleDetail | null;
 	totalUnread: number;
 };
 
@@ -446,18 +443,11 @@ export async function loadReaderData(
 		feedurl: selectedFeedUrl,
 		q: search.q,
 	});
-	const selectedArticleGuid = search.article || articles[0]?.guid;
-	const selectedArticle = selectedArticleGuid
-		? await getArticle(selectedArticleGuid)
-		: null;
-
 	return {
 		isDatabaseConfigured: hasDatabaseUrl(),
 		feeds,
 		articles,
 		selectedFeedUrl,
-		selectedArticleGuid,
-		selectedArticle,
 		totalUnread: feeds.reduce((total, feed) => total + feed.unreadCount, 0),
 	};
 }

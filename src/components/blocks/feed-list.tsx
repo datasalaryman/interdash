@@ -119,6 +119,7 @@ export function FeedList({
 											: "text-foreground",
 									)}
 									key={feed.rssurl}
+									resetScroll={false}
 									search={{ feed: feed.rssurl, q: query || undefined }}
 									to="/"
 								>

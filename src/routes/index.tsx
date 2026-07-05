@@ -10,7 +10,6 @@ function normalizeOptionalString(value: unknown) {
 
 function normalizeSearch(search: Record<string, unknown>): ReaderSearch {
 	return {
-		article: normalizeOptionalString(search.article),
 		feed: normalizeOptionalString(search.feed),
 		q: normalizeOptionalString(search.q),
 	};

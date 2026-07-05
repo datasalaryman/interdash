@@ -6,9 +6,9 @@ import {
 	useState,
 } from "react";
 
-import { ArticleList } from "@/components/blocks/article-list";
 import { FeedList } from "@/components/blocks/feed-list";
 import { ReaderSearchForm } from "@/components/blocks/reader-search-form";
+import { ArticleList } from "@/components/groups/article-list";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import type { ReaderData, ReaderSearch } from "@/lib/newsboat";
@@ -182,10 +182,7 @@ export function ReaderShell({ data, search }: ReaderShellProps) {
 				<section className="min-h-[68vh] flex-1">
 					<ArticleList
 						articles={data.articles}
-						query={search.q}
-						selectedArticle={data.selectedArticle}
-						selectedArticleGuid={data.selectedArticleGuid}
-						selectedFeedUrl={data.selectedFeedUrl}
+						key={`${data.selectedFeedUrl ?? ""}\n${search.q ?? ""}`}
 					/>
 				</section>
 			</main>
