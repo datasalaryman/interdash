@@ -127,9 +127,6 @@ export function FeedList({
 											<span className="block truncate font-medium text-sm">
 												{feed.title}
 											</span>
-											<span className="block truncate text-muted-foreground text-xs">
-												{feed.rssurl}
-											</span>
 										</span>
 										<span className="flex shrink-0 items-center gap-1">
 											<Badge
