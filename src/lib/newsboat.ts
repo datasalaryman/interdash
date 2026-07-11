@@ -505,6 +505,46 @@ export async function markFeedRead(feedurl: string) {
 	return { updated: result.rowCount ?? 0 };
 }
 
+export async function deleteFeed(feedurl: string) {
+	console.info(`[POST /feeds/delete] called ${feedurl}`);
+	const db = getDb();
+
+	if (!db) {
+		throw new Error("DATABASE_URL is not configured.");
+	}
+
+	try {
+		const deletedArticles = await db.transaction(async (tx) => {
+			const articlesResult = await tx
+				.delete(rssItem)
+				.where(eq(rssItem.feedurl, feedurl));
+
+			const result = await tx
+				.delete(rssFeed)
+				.where(eq(rssFeed.rssurl, feedurl));
+
+			if ((result.rowCount ?? 0) === 0) {
+				throw new Error("Feed not found.");
+			}
+
+			return articlesResult.rowCount ?? 0;
+		});
+
+		await deleteCacheKeys(["newsboat:feeds"]);
+		console.info(
+			`[POST /feeds/delete] deleted ${deletedArticles} articles for ${feedurl}`,
+		);
+		console.info(`[POST /feeds/delete] deleted feed ${feedurl}`);
+
+		return { deleted: true };
+	} catch (error) {
+		const message =
+			error instanceof Error ? error.message : "Unable to delete feed.";
+		console.error(`[POST /feeds/delete] error ${feedurl}: ${message}`);
+		throw error;
+	}
+}
+
 export async function loadReaderData(
 	search: ReaderSearch = {},
 ): Promise<ReaderData> {

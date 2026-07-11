@@ -9,6 +9,10 @@ const importFeedBatchInputSchema = z.object({
 	text: z.string().min(1, "The selected file is empty."),
 });
 
+const deleteFeedInputSchema = z.object({
+	rssurl: z.string().min(1, "Feed URL is required."),
+});
+
 export const addFeed = createServerFn({ method: "POST" })
 	.validator((input) => addFeedInputSchema.parse(input))
 	.handler(async ({ data }) => {
@@ -23,4 +27,12 @@ export const importFeedBatch = createServerFn({ method: "POST" })
 		const { importFeedBatch: importBatch } = await import("@/lib/newsboat");
 
 		return importBatch(data.text);
+	});
+
+export const deleteFeed = createServerFn({ method: "POST" })
+	.validator((input) => deleteFeedInputSchema.parse(input))
+	.handler(async ({ data }) => {
+		const { deleteFeed: removeFeed } = await import("@/lib/newsboat");
+
+		return removeFeed(data.rssurl);
 	});
