@@ -4,6 +4,7 @@ import { z } from "zod";
 import {
 	addFeedFromUrl,
 	getArticleCached,
+	importFeedBatch,
 	listArticlesCached,
 	listFeedsCached,
 	markFeedRead,
@@ -47,6 +48,12 @@ const addFeedResultSchema = z.object({
 	updatedCount: z.number(),
 });
 
+const importFeedBatchResultSchema = z.object({
+	imported: z.array(addFeedResultSchema),
+	skipped: z.array(z.string()),
+	failed: z.array(z.object({ rssurl: z.string(), error: z.string() })),
+});
+
 export const apiRouter = {
 	feeds: {
 		list: os
@@ -58,6 +65,11 @@ export const apiRouter = {
 			.input(z.object({ rssurl: z.string().min(1) }))
 			.output(addFeedResultSchema)
 			.handler(async ({ input }) => addFeedFromUrl(input.rssurl)),
+		importBatch: os
+			.route({ method: "POST", path: "/feeds/import" })
+			.input(z.object({ text: z.string().min(1) }))
+			.output(importFeedBatchResultSchema)
+			.handler(async ({ input }) => importFeedBatch(input.text)),
 		markRead: os
 			.route({ method: "POST", path: "/feeds/{rssurl}/read" })
 			.input(z.object({ rssurl: z.string() }))

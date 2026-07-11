@@ -58,6 +58,23 @@ export type AddFeedResult = {
 	updatedCount: number;
 };
 
+export type ImportFeedBatchResult = {
+	imported: Array<AddFeedResult>;
+	skipped: Array<string>;
+	failed: Array<{ rssurl: string; error: string }>;
+};
+
+export function parseFeedBatch(text: string): Array<string> {
+	return [
+		...new Set(
+			text
+				.split(/\r?\n/)
+				.map((line) => line.split("#", 1)[0]?.trim() ?? "")
+				.filter(Boolean),
+		),
+	];
+}
+
 type ListArticlesInput = {
 	feedurl?: string;
 	q?: string;
@@ -304,6 +321,60 @@ export async function addFeedFromUrl(value: string): Promise<AddFeedResult> {
 		itemCount: feed.items.length,
 		updatedCount,
 	};
+}
+
+export async function importFeedBatch(
+	text: string,
+): Promise<ImportFeedBatchResult> {
+	console.info("[POST /feeds/import] called");
+	const urls = parseFeedBatch(text);
+
+	if (urls.length === 0) {
+		throw new Error("The file does not contain any feed URLs.");
+	}
+
+	const db = getDb();
+
+	if (!db) {
+		throw new Error("DATABASE_URL is not configured.");
+	}
+
+	const result: ImportFeedBatchResult = {
+		imported: [],
+		skipped: [],
+		failed: [],
+	};
+
+	for (const value of urls) {
+		let rssurl = value;
+		try {
+			rssurl = normalizeHttpUrl(value);
+			const existingFeed = await db
+				.select({ rssurl: rssFeed.rssurl })
+				.from(rssFeed)
+				.where(eq(rssFeed.rssurl, rssurl))
+				.limit(1);
+
+			if (existingFeed.length > 0) {
+				result.skipped.push(rssurl);
+				console.info(`[POST /feeds/import] skipped ${rssurl}`);
+				continue;
+			}
+
+			console.info(`[POST /feeds/import] started upserting ${rssurl}`);
+			result.imported.push(await addFeedFromUrl(rssurl));
+		} catch (error) {
+			const message =
+				error instanceof Error ? error.message : "Unable to add feed.";
+			result.failed.push({
+				rssurl,
+				error: message,
+			});
+			console.error(`[POST /feeds/import] error ${rssurl}: ${message}`);
+		}
+	}
+
+	return result;
 }
 
 export async function listArticles({
