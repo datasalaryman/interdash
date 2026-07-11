@@ -13,6 +13,10 @@ const deleteFeedInputSchema = z.object({
 	rssurl: z.string().min(1, "Feed URL is required."),
 });
 
+const deleteFeedsInputSchema = z.object({
+	feedurls: z.array(z.string().min(1)).min(1, "Select at least one feed."),
+});
+
 export const addFeed = createServerFn({ method: "POST" })
 	.validator((input) => addFeedInputSchema.parse(input))
 	.handler(async ({ data }) => {
@@ -35,4 +39,12 @@ export const deleteFeed = createServerFn({ method: "POST" })
 		const { deleteFeed: removeFeed } = await import("@/lib/newsboat");
 
 		return removeFeed(data.rssurl);
+	});
+
+export const deleteFeeds = createServerFn({ method: "POST" })
+	.validator((input) => deleteFeedsInputSchema.parse(input))
+	.handler(async ({ data }) => {
+		const { deleteFeeds: removeFeeds } = await import("@/lib/newsboat");
+
+		return removeFeeds(data.feedurls);
 	});

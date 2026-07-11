@@ -7,6 +7,7 @@ import {
 } from "react";
 
 import { FeedList } from "@/components/blocks/feed-list";
+import { FeedManager } from "@/components/blocks/feed-manager";
 import { ReaderSearchForm } from "@/components/blocks/reader-search-form";
 import { ArticleList } from "@/components/groups/article-list";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +46,7 @@ export function ReaderShell({ data, search }: ReaderShellProps) {
 	const previousUserSelectRef = useRef("");
 	const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
 	const [isResizingSidebar, setIsResizingSidebar] = useState(false);
+	const [isManagingFeeds, setIsManagingFeeds] = useState(false);
 	const shellStyle = {
 		"--sidebar-width": `${sidebarWidth}px`,
 	} as CSSProperties;
@@ -94,6 +96,7 @@ export function ReaderShell({ data, search }: ReaderShellProps) {
 			<FeedList
 				canAddFeed={data.isDatabaseConfigured}
 				feeds={data.feeds}
+				onManageFeeds={() => setIsManagingFeeds(true)}
 				query={search.q}
 				selectedFeedUrl={data.selectedFeedUrl}
 				totalUnread={data.totalUnread}
@@ -174,17 +177,27 @@ export function ReaderShell({ data, search }: ReaderShellProps) {
 					</Card>
 				) : null}
 
-				<ReaderSearchForm
-					defaultQuery={search.q}
-					selectedFeedUrl={data.selectedFeedUrl}
-				/>
-
-				<section className="min-h-[68vh] flex-1">
-					<ArticleList
-						articles={data.articles}
-						key={`${data.selectedFeedUrl ?? ""}\n${search.q ?? ""}`}
+				{isManagingFeeds ? (
+					<FeedManager
+						feeds={data.feeds}
+						onClose={() => setIsManagingFeeds(false)}
+						search={search}
 					/>
-				</section>
+				) : (
+					<>
+						<ReaderSearchForm
+							defaultQuery={search.q}
+							selectedFeedUrl={data.selectedFeedUrl}
+						/>
+
+						<section className="min-h-[68vh] flex-1">
+							<ArticleList
+								articles={data.articles}
+								key={`${data.selectedFeedUrl ?? ""}\n${search.q ?? ""}`}
+							/>
+						</section>
+					</>
+				)}
 			</main>
 		</div>
 	);

@@ -29,6 +29,7 @@ import { deleteFeed } from "@/server/functions/feeds";
 type FeedListProps = {
 	canAddFeed: boolean;
 	feeds: Array<FeedSummary>;
+	onManageFeeds: () => void;
 	query?: string;
 	selectedFeedUrl?: string;
 	totalUnread: number;
@@ -37,6 +38,7 @@ type FeedListProps = {
 export function FeedList({
 	canAddFeed,
 	feeds,
+	onManageFeeds,
 	query,
 	selectedFeedUrl,
 	totalUnread,
@@ -143,9 +145,19 @@ export function FeedList({
 						{feeds.length} subscriptions
 					</p>
 				</div>
-				<Badge variant={totalUnread > 0 ? "default" : "secondary"}>
-					{totalUnread} unread
-				</Badge>
+				<div className="flex flex-col items-end gap-2">
+					<Button
+						onClick={onManageFeeds}
+						size="sm"
+						type="button"
+						variant="outline"
+					>
+						Manage Feeds
+					</Button>
+					<Badge variant={totalUnread > 0 ? "default" : "secondary"}>
+						{totalUnread} unread
+					</Badge>
+				</div>
 			</div>
 
 			<nav aria-label="Feeds" className="min-h-0 flex-1 overflow-auto p-2">

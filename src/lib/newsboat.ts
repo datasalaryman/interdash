@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import { and, desc, eq, ilike, ne, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, ne, or, sql } from "drizzle-orm";
 
 import { getDb, hasDatabaseUrl } from "@/db";
 import { rssFeed, rssItem } from "@/db/schema";
@@ -541,6 +541,49 @@ export async function deleteFeed(feedurl: string) {
 		const message =
 			error instanceof Error ? error.message : "Unable to delete feed.";
 		console.error(`[POST /feeds/delete] error ${feedurl}: ${message}`);
+		throw error;
+	}
+}
+
+export async function deleteFeeds(feedurls: Array<string>) {
+	console.info(
+		`[POST /feeds/delete-batch] called for ${feedurls.length} feeds`,
+	);
+	const db = getDb();
+
+	if (!db) {
+		throw new Error("DATABASE_URL is not configured.");
+	}
+
+	try {
+		const result = await db.transaction(async (tx) => {
+			const articlesResult = await tx
+				.delete(rssItem)
+				.where(inArray(rssItem.feedurl, feedurls));
+			const feedsResult = await tx
+				.delete(rssFeed)
+				.where(inArray(rssFeed.rssurl, feedurls));
+
+			if ((feedsResult.rowCount ?? 0) !== feedurls.length) {
+				throw new Error("One or more feeds were not found.");
+			}
+
+			return {
+				deletedArticles: articlesResult.rowCount ?? 0,
+				deletedFeeds: feedsResult.rowCount ?? 0,
+			};
+		});
+
+		await deleteCacheKeys(["newsboat:feeds"]);
+		console.info(
+			`[POST /feeds/delete-batch] deleted ${result.deletedArticles} articles and ${result.deletedFeeds} feeds`,
+		);
+
+		return result;
+	} catch (error) {
+		const message =
+			error instanceof Error ? error.message : "Unable to delete feeds.";
+		console.error(`[POST /feeds/delete-batch] error: ${message}`);
 		throw error;
 	}
 }
