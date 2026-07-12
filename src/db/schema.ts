@@ -1,11 +1,58 @@
+import { sql } from "drizzle-orm";
 import {
+	check,
 	index,
 	integer,
 	pgTable,
 	serial,
 	text,
+	timestamp,
+	uuid,
 	varchar,
 } from "drizzle-orm/pg-core";
+
+export type JobType = "feed" | "article";
+export type JobStatus = "pending" | "processing" | "completed" | "failed";
+
+export const job = pgTable(
+	"interdash_jobs",
+	{
+		id: uuid("id").primaryKey().defaultRandom(),
+		type: varchar("type", { length: 32 }).$type<JobType>().notNull(),
+		status: varchar("status", { length: 32 })
+			.$type<JobStatus>()
+			.notNull()
+			.default("pending"),
+		targetUrl: varchar("target_url", { length: 2048 }).notNull(),
+		feedUrl: varchar("feed_url", { length: 1024 }),
+		articleGuid: varchar("article_guid", { length: 64 }),
+		attempts: integer("attempts").notNull().default(0),
+		maxAttempts: integer("max_attempts").notNull().default(3),
+		error: text("error"),
+		createdAt: timestamp("created_at", { withTimezone: true })
+			.notNull()
+			.defaultNow(),
+		startedAt: timestamp("started_at", { withTimezone: true }),
+		completedAt: timestamp("completed_at", { withTimezone: true }),
+		updatedAt: timestamp("updated_at", { withTimezone: true })
+			.notNull()
+			.defaultNow(),
+	},
+	(table) => [
+		check(
+			"interdash_jobs_type_check",
+			sql`${table.type} in ('feed', 'article')`,
+		),
+		check(
+			"interdash_jobs_status_check",
+			sql`${table.status} in ('pending', 'processing', 'completed', 'failed')`,
+		),
+		index("interdash_jobs_status_created_idx").on(
+			table.status,
+			table.createdAt,
+		),
+	],
+);
 
 export const rssFeed = pgTable(
 	"interdash_rss_feed",

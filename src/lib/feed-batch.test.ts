@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 
-import { parseFeedBatch } from "@/lib/newsboat";
+import { parseFeedBatch } from "@/lib/jobs";
 
 test("parseFeedBatch extracts feeds and removes comments", () => {
 	expect(

@@ -1,10 +1,9 @@
 import { ORPCError, os } from "@orpc/server";
 import { z } from "zod";
 
+import { enqueueFeed, enqueueFeedBatch } from "@/lib/jobs";
 import {
-	addFeedFromUrl,
 	getArticleCached,
-	importFeedBatch,
 	listArticlesCached,
 	listFeedsCached,
 	markFeedRead,
@@ -42,10 +41,8 @@ const articleDetailSchema = articleSummarySchema.extend({
 });
 
 const addFeedResultSchema = z.object({
-	feed: feedSummarySchema,
-	itemCount: z.number(),
-	insertedCount: z.number(),
-	updatedCount: z.number(),
+	id: z.string().uuid(),
+	rssurl: z.string(),
 });
 
 const importFeedBatchResultSchema = z.object({
@@ -64,12 +61,12 @@ export const apiRouter = {
 			.route({ method: "POST", path: "/feeds" })
 			.input(z.object({ rssurl: z.string().min(1) }))
 			.output(addFeedResultSchema)
-			.handler(async ({ input }) => addFeedFromUrl(input.rssurl)),
+			.handler(async ({ input }) => enqueueFeed(input.rssurl)),
 		importBatch: os
 			.route({ method: "POST", path: "/feeds/import" })
 			.input(z.object({ text: z.string().min(1) }))
 			.output(importFeedBatchResultSchema)
-			.handler(async ({ input }) => importFeedBatch(input.text)),
+			.handler(async ({ input }) => enqueueFeedBatch(input.text)),
 		markRead: os
 			.route({ method: "POST", path: "/feeds/{rssurl}/read" })
 			.input(z.object({ rssurl: z.string() }))

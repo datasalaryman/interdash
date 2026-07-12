@@ -20,17 +20,17 @@ const deleteFeedsInputSchema = z.object({
 export const addFeed = createServerFn({ method: "POST" })
 	.validator((input) => addFeedInputSchema.parse(input))
 	.handler(async ({ data }) => {
-		const { addFeedFromUrl } = await import("@/lib/newsboat");
+		const { enqueueFeed } = await import("@/lib/jobs");
 
-		return addFeedFromUrl(data.rssurl);
+		return enqueueFeed(data.rssurl);
 	});
 
 export const importFeedBatch = createServerFn({ method: "POST" })
 	.validator((input) => importFeedBatchInputSchema.parse(input))
 	.handler(async ({ data }) => {
-		const { importFeedBatch: importBatch } = await import("@/lib/newsboat");
+		const { enqueueFeedBatch } = await import("@/lib/jobs");
 
-		return importBatch(data.text);
+		return enqueueFeedBatch(data.text);
 	});
 
 export const deleteFeed = createServerFn({ method: "POST" })

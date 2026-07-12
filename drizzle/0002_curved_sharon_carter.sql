@@ -1,0 +1,1 @@
+ALTER TABLE "interdash_jobs" DROP COLUMN "result";

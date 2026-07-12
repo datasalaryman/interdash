@@ -187,7 +187,7 @@ export function AddFeedDialog({
 											<p className="font-bold text-2xl">
 												{batchResult.imported.length}
 											</p>
-											<p>Imported</p>
+											<p>Queued</p>
 										</div>
 										<div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-amber-700 dark:text-amber-400">
 											<SkipForwardIcon className="mb-2 size-5" />
@@ -275,10 +275,8 @@ export function AddFeedDialog({
 		setIsSubmitting(true);
 
 		try {
-			const result = await addFeed({ data: { rssurl } });
-			const params = new URLSearchParams({ feed: result.feed.rssurl });
-
-			window.location.assign(`/?${params.toString()}`);
+			await addFeed({ data: { rssurl } });
+			window.location.assign("/");
 		} catch (submitError) {
 			setError(errorMessage(submitError));
 			setIsSubmitting(false);

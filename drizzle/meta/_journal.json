@@ -1,13 +1,27 @@
 {
-	"version": "7",
-	"dialect": "postgresql",
-	"entries": [
-		{
-			"idx": 0,
-			"version": "7",
-			"when": 1783213708168,
-			"tag": "0000_complex_night_nurse",
-			"breakpoints": true
-		}
-	]
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1783213708168,
+      "tag": "0000_complex_night_nurse",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1783824588589,
+      "tag": "0001_safe_hellion",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783824851707,
+      "tag": "0002_curved_sharon_carter",
+      "breakpoints": true
+    }
+  ]
 }
