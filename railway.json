@@ -6,6 +6,7 @@
 	},
 	"deploy": {
 		"startCommand": "bun run worker",
+		"region": "ap-southeast-1",
 		"numReplicas": 1,
 		"sleepApplication": false,
 		"restartPolicyType": "ALWAYS",
