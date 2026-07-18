@@ -35,6 +35,26 @@ function truncate(value: string | null | undefined, length: number) {
 	return value ? value.slice(0, length) : "";
 }
 
+function logJob(
+	job: Job,
+	event: string,
+	details: Record<string, unknown> = {},
+) {
+	console.info(
+		JSON.stringify({
+			component: "worker",
+			event,
+			jobId: job.id,
+			jobType: job.type === "article" ? "item" : "feed",
+			feedUrl: job.feed_url ?? job.target_url,
+			targetUrl: job.target_url,
+			attempt: job.attempts,
+			maxAttempts: job.max_attempts,
+			...details,
+		}),
+	);
+}
+
 function itemGuid(feedUrl: string, item: ParsedRssItem, index: number) {
 	const source =
 		item.sourceId || item.url || `${item.title}:${item.pubDate}:${index}`;
@@ -66,10 +86,20 @@ async function claimJob(): Promise<Job | null> {
 }
 
 async function ingestFeed(job: Job) {
+	const fetchStartedAt = performance.now();
+	logJob(job, "fetch_started", { itemCount: null });
 	const feed = await fetchRssFeed(job.target_url);
+	logJob(job, "fetch_completed", {
+		feedTitle: feed.title,
+		itemCount: feed.items.length,
+		durationMs: Math.round(performance.now() - fetchStartedAt),
+	});
 	const client = await pool.connect();
+	let insertedCount = 0;
+	let updatedCount = 0;
 
 	try {
+		logJob(job, "upsert_started", { itemCount: feed.items.length });
 		await client.query("BEGIN");
 		await client.query(
 			`INSERT INTO interdash_rss_feed
@@ -116,9 +146,17 @@ async function ingestFeed(job: Job) {
 					 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
 					values,
 				);
+				insertedCount += 1;
+			} else {
+				updatedCount += 1;
 			}
 		}
 		await client.query("COMMIT");
+		logJob(job, "upsert_completed", {
+			itemCount: feed.items.length,
+			insertedCount,
+			updatedCount,
+		});
 	} catch (error) {
 		await client.query("ROLLBACK");
 		throw error;
@@ -131,6 +169,8 @@ async function ingestArticle(job: Job) {
 	if (!job.feed_url || !job.article_guid) {
 		throw new Error("Article jobs require feed_url and article_guid.");
 	}
+	const fetchStartedAt = performance.now();
+	logJob(job, "fetch_started", { itemCount: 1 });
 	const response = await fetch(job.target_url, {
 		headers: { "User-Agent": "interdash/article-fetcher" },
 	});
@@ -138,12 +178,17 @@ async function ingestArticle(job: Job) {
 		throw new Error(`Article request failed with HTTP ${response.status}.`);
 	}
 	const content = await response.text();
+	logJob(job, "fetch_completed", {
+		itemCount: 1,
+		durationMs: Math.round(performance.now() - fetchStartedAt),
+	});
 	const contentType = truncate(
 		response.headers.get("content-type")?.split(";", 1)[0],
 		255,
 	);
 	const client = await pool.connect();
 	try {
+		logJob(job, "upsert_started", { itemCount: 1 });
 		await client.query("BEGIN");
 		await ensureFeedExists(client, job.feed_url);
 		const updated = await client.query(
@@ -167,6 +212,11 @@ async function ingestArticle(job: Job) {
 			);
 		}
 		await client.query("COMMIT");
+		logJob(job, "upsert_completed", {
+			itemCount: 1,
+			insertedCount: (updated.rowCount ?? 0) === 0 ? 1 : 0,
+			updatedCount: updated.rowCount ?? 0,
+		});
 	} catch (error) {
 		await client.query("ROLLBACK");
 		throw error;
@@ -184,6 +234,7 @@ async function ensureFeedExists(client: PoolClient, feedUrl: string) {
 }
 
 async function processJob(job: Job) {
+	logJob(job, "job_order_recognized");
 	try {
 		if (job.type === "feed") {
 			await ingestFeed(job);
@@ -195,7 +246,7 @@ async function processJob(job: Job) {
 				completed_at = now(), updated_at = now() WHERE id = $1`,
 			[job.id],
 		);
-		console.info(`[worker] completed ${job.type} job ${job.id}`);
+		logJob(job, "job_completed");
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		const status = job.attempts >= job.max_attempts ? "failed" : "pending";
@@ -205,7 +256,20 @@ async function processJob(job: Job) {
 				updated_at = now() WHERE id = $1`,
 			[job.id, status, message],
 		);
-		console.error(`[worker] ${status} ${job.type} job ${job.id}: ${message}`);
+		console.error(
+			JSON.stringify({
+				component: "worker",
+				event: "job_processing_failed",
+				jobId: job.id,
+				jobType: job.type === "article" ? "item" : "feed",
+				feedUrl: job.feed_url ?? job.target_url,
+				targetUrl: job.target_url,
+				attempt: job.attempts,
+				maxAttempts: job.max_attempts,
+				status,
+				error: message,
+			}),
+		);
 	}
 }
 
