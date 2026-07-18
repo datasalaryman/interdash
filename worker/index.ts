@@ -25,6 +25,8 @@ const publicationName =
 	process.env.WORKER_PUBLICATION ?? "interdash_jobs_publication";
 const slotName = process.env.WORKER_REPLICATION_SLOT ?? "interdash_jobs_worker";
 const pollIntervalMs = Number(process.env.WORKER_POLL_INTERVAL_MS ?? 30_000);
+const logicalReplicationEnabled =
+	process.env.WORKER_LOGICAL_REPLICATION_ENABLED !== "false";
 const pool = new Pool({ connectionString: databaseUrl });
 let draining = false;
 let stopping = false;
@@ -219,19 +221,23 @@ async function drainJobs() {
 	}
 }
 
-const replication = new LogicalReplicationService(
-	{ connectionString: databaseUrl },
-	{
-		acknowledge: { auto: true, timeoutSeconds: 10 },
-		flowControl: { enabled: true },
-	},
-);
-const plugin = new PgoutputPlugin({
-	protoVersion: 1,
-	publicationNames: [publicationName],
-});
+const replication = logicalReplicationEnabled
+	? new LogicalReplicationService(
+			{ connectionString: databaseUrl },
+			{
+				acknowledge: { auto: true, timeoutSeconds: 10 },
+				flowControl: { enabled: true },
+			},
+		)
+	: null;
+const plugin = logicalReplicationEnabled
+	? new PgoutputPlugin({
+			protoVersion: 1,
+			publicationNames: [publicationName],
+		})
+	: null;
 
-replication.on("data", (_lsn: string, message: Pgoutput.Message) => {
+replication?.on("data", (_lsn: string, message: Pgoutput.Message) => {
 	if (
 		message.tag === "insert" &&
 		message.relation.schema === "public" &&
@@ -240,11 +246,13 @@ replication.on("data", (_lsn: string, message: Pgoutput.Message) => {
 		void drainJobs();
 	}
 });
-replication.on("error", (error) =>
+replication?.on("error", (error) =>
 	console.error("[worker] replication error", error),
 );
 
 async function subscribe() {
+	if (!replication || !plugin) return;
+
 	while (!stopping) {
 		try {
 			await replication.subscribe(plugin, slotName);
@@ -259,7 +267,7 @@ async function shutdown() {
 	if (stopping) return;
 	stopping = true;
 	console.info("[worker] shutting down");
-	await replication.stop();
+	await replication?.stop();
 	await pool.end();
 }
 
@@ -267,7 +275,9 @@ process.once("SIGINT", () => void shutdown());
 process.once("SIGTERM", () => void shutdown());
 setInterval(() => void drainJobs(), pollIntervalMs).unref();
 console.info(
-	`[worker] listening via slot ${slotName} and publication ${publicationName}`,
+	logicalReplicationEnabled
+		? `[worker] listening via slot ${slotName} and publication ${publicationName}`
+		: `[worker] polling every ${pollIntervalMs}ms (logical replication disabled)`,
 );
 void drainJobs();
-void subscribe();
+if (logicalReplicationEnabled) void subscribe();

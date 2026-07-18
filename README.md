@@ -29,6 +29,7 @@ Set these environment variables:
 - `REDIS_URL`: Redis connection string for cached API reads. If omitted, reads still work without caching.
 - `WORKER_PUBLICATION`: Logical replication publication name. Defaults to `interdash_jobs_publication`.
 - `WORKER_REPLICATION_SLOT`: Logical replication slot name. Defaults to `interdash_jobs_worker`.
+- `WORKER_LOGICAL_REPLICATION_ENABLED`: Set to `false` to process jobs by polling without requiring PostgreSQL logical replication. Defaults to `true`.
 - `WORKER_POLL_INTERVAL_MS`: Safety-net polling interval. Defaults to 30 seconds.
 
 ## Database
@@ -79,6 +80,18 @@ SELECT pg_create_logical_replication_slot(
 5. Deploy `bun run worker` as a continuously running process with the same `DATABASE_URL` as the web app. Do not run it in a request-based/serverless function.
 
 Publication and slot names must match the worker environment variables. A replication slot retains WAL while disconnected, so monitor slot lag and remove an abandoned slot with `SELECT pg_drop_replication_slot('interdash_jobs_worker');` only after the worker has been permanently retired.
+
+### Railway
+
+`railway.json` configures this repository as a continuously running worker service. It uses Railpack's Bun detection, runs `bun run worker`, restarts the worker, and prevents deployment overlap because one replication slot cannot be consumed by two worker instances.
+
+1. Create a Railway service from this repository and add a PostgreSQL service to the same project, or use an existing PostgreSQL provider.
+2. Set `DATABASE_URL` on the worker. For Railway PostgreSQL, use a reference variable such as `${{Postgres.DATABASE_URL}}`, replacing `Postgres` if the database service has a different name.
+3. Apply the checked-in migrations once with `bun run db:migrate`, either from a Railway one-off shell or from a trusted deployment environment using the production `DATABASE_URL`.
+4. For an initial Railway PostgreSQL deployment, set `WORKER_LOGICAL_REPLICATION_ENABLED=false`. The worker will safely claim jobs at startup and every `WORKER_POLL_INTERVAL_MS` without a publication or slot.
+5. To receive jobs immediately, configure PostgreSQL logical replication using the SQL and grants above, then set `WORKER_LOGICAL_REPLICATION_ENABLED=true`. Railway PostgreSQL allows server settings to be changed with `ALTER SYSTEM`; changing `wal_level` requires restarting the PostgreSQL service.
+
+Keep the worker at one replica when logical replication is enabled. Polling-only mode supports multiple replicas because job claims use `FOR UPDATE SKIP LOCKED`, though one replica is normally sufficient.
 
 ## API
 
